@@ -19,6 +19,7 @@ import (
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
 )
 
@@ -382,6 +383,13 @@ func videoFetchByIDRespBodyBuilder(c *gin.Context) (respBody []byte, taskResp *d
 	}
 	if !exist {
 		taskResp = service.TaskErrorWrapperLocal(errors.New("task_not_exist"), "task_not_exist", http.StatusBadRequest)
+		return
+	}
+
+	// Volc-native format: return the Volc-shaped task response (raw upstream
+	// data if polled, otherwise a synthesized minimal response).
+	if c.GetString("relay_format") == string(types.RelayFormatVolc) {
+		respBody = buildVolcNativeTaskFetchResp(originTask)
 		return
 	}
 

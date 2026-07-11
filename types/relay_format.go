@@ -16,4 +16,10 @@ const (
 
 	RelayFormatTask    = "task"
 	RelayFormatMjProxy = "mj_proxy"
+
+	// RelayFormatVolc is the native Volc Ark API format. Requests are forwarded
+	// byte-identical to the upstream without body rewriting; Volc-specific fields
+	// (sequential_image_generation, optimize_prompt_options, watermark, 2K/4K
+	// size literals, etc.) are preserved as-is.
+	RelayFormatVolc RelayFormat = "volc"
 )

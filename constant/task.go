@@ -5,6 +5,12 @@ type TaskPlatform string
 const (
 	TaskPlatformSuno       TaskPlatform = "suno"
 	TaskPlatformMidjourney              = "mj"
+	// TaskPlatformVolcNative marks native Volc Ark video tasks. These reuse the
+	// existing VolcEngine(45) channel rather than a dedicated channel type; the
+	// named platform (not the channel-type number) selects our task adaptor at
+	// both submit and poll time, so it is set on the route context and persisted
+	// on the task row.
+	TaskPlatformVolcNative TaskPlatform = "volc-native"
 )
 
 const (

@@ -1,8 +1,11 @@
 package router
 
 import (
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/controller"
 	"github.com/QuantumNous/new-api/middleware"
+	relayconstant "github.com/QuantumNous/new-api/relay/constant"
+	"github.com/QuantumNous/new-api/types"
 
 	"github.com/gin-gonic/gin"
 )
@@ -39,6 +42,41 @@ func SetVideoRouter(router *gin.Engine) {
 		klingV1Router.POST("/videos/image2video", controller.RelayTask)
 		klingV1Router.GET("/videos/text2video/:task_id", controller.RelayTaskFetch)
 		klingV1Router.GET("/videos/image2video/:task_id", controller.RelayTaskFetch)
+	}
+
+	// Volc Ark compatible task routes — native pass-through with unknown fields
+	// preserved. These reuse the existing VolcEngine(45) channel: there is no
+	// dedicated channel type. Selection of our adaptor is driven by two context
+	// values instead of a channel-type number:
+	//   - relay_format = "volc" makes RelayTask / RelayTaskFetch take the
+	//     Volc-native code path.
+	//   - platform = "volc-native" makes RelayTaskSubmit resolve GetTaskAdaptor to
+	//     our task adaptor and, critically, persist the task with
+	//     Platform="volc-native" so polling (GetTaskAdaptor(originTask.Platform))
+	//     routes back here regardless of the underlying channel type.
+	volcV3Router := router.Group("/api/v3")
+	volcV3Router.Use(middleware.RouteTag("relay"))
+	volcV3Router.Use(middleware.TokenAuth(), middleware.Distribute())
+	{
+		volcV3Router.POST("/contents/generations/tasks", func(c *gin.Context) {
+			c.Set("relay_format", string(types.RelayFormatVolc))
+			c.Set("platform", string(constant.TaskPlatformVolcNative))
+			controller.RelayTask(c)
+		})
+		volcV3Router.GET("/contents/generations/tasks", func(c *gin.Context) {
+			c.Set("relay_format", string(types.RelayFormatVolc))
+			c.Set("platform", string(constant.TaskPlatformVolcNative))
+			c.Set("relay_mode", relayconstant.RelayModeVideoFetchList)
+			controller.RelayTaskFetch(c)
+		})
+		volcV3Router.GET("/contents/generations/tasks/:id", func(c *gin.Context) {
+			c.Set("relay_format", string(types.RelayFormatVolc))
+			c.Set("platform", string(constant.TaskPlatformVolcNative))
+			c.Set("task_id", c.Param("id"))
+			c.Set("relay_mode", relayconstant.RelayModeVideoFetchByID)
+			controller.RelayTaskFetch(c)
+		})
+		volcV3Router.DELETE("/contents/generations/tasks/:id", controller.VolcTaskDelete)
 	}
 
 	// Jimeng official API routes - direct mapping to official API format

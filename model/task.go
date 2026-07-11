@@ -116,6 +116,26 @@ type TaskBillingContext struct {
 	OtherRatios     map[string]float64 `json:"other_ratios,omitempty"`      // 附加倍率（时长、分辨率等）
 	OriginModelName string             `json:"origin_model_name,omitempty"` // 模型名称，必须为OriginModelName
 	PerCallBilling  bool               `json:"per_call_billing,omitempty"`  // 按次计费：跳过轮询阶段的差额结算
+
+	// VolcBillingFlags captures the submit-time Volc request fields the Volc GET
+	// task response does NOT echo (generate_audio, input content[] video refs),
+	// so the Volc-native settle hook (AdjustBillingOnComplete) can evaluate the
+	// hardcoded per-model billing expression accurately. Populated only for
+	// native Volc (Platform="volc-native") seedance tasks.
+	VolcBillingFlags *VolcBillingFlags `json:"volc_billing_flags,omitempty"`
+}
+
+// VolcBillingFlags stores the Volc-native request parameters needed by the
+// settlement expression. Resolution/Duration/ServiceTier are also echoed by the
+// Volc GET response, but are captured here too so settlement is deterministic
+// from submit-time data alone. GenerateAudio uses a pointer so "absent" (nil)
+// is distinguishable from an explicit false.
+type VolcBillingFlags struct {
+	Resolution    string `json:"resolution,omitempty"`
+	Duration      int    `json:"duration,omitempty"`
+	ServiceTier   string `json:"service_tier,omitempty"`
+	GenerateAudio *bool  `json:"generate_audio,omitempty"`
+	HasVideoInput bool   `json:"has_video_input,omitempty"`
 }
 
 // GetUpstreamTaskID 获取上游真实 task ID（用于与 provider 通信）

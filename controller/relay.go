@@ -17,6 +17,7 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	perfmetrics "github.com/QuantumNous/new-api/pkg/perf_metrics"
 	"github.com/QuantumNous/new-api/relay"
+	volcadaptertask "github.com/QuantumNous/new-api/relay/channel/task/volcadapter"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/relay/helper"
@@ -217,6 +218,8 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			newAPIError = relay.ClaudeHelper(c, relayInfo)
 		case types.RelayFormatGemini:
 			newAPIError = geminiRelayHandler(c, relayInfo)
+		case types.RelayFormatVolc:
+			newAPIError = relay.VolcImageHelper(c, relayInfo)
 		default:
 			newAPIError = relayHandler(c, relayInfo)
 		}
@@ -468,8 +471,19 @@ func RelayNotFound(c *gin.Context) {
 	})
 }
 
+// taskRelayFormat returns the RelayFormat to use for task relay functions.
+// Routes that require Volc-native pass-through set "relay_format" = "volc" in
+// the context before dispatching; all other routes leave it unset and get the
+// standard task format.
+func taskRelayFormat(c *gin.Context) types.RelayFormat {
+	if f := c.GetString("relay_format"); f != "" {
+		return types.RelayFormat(f)
+	}
+	return types.RelayFormatTask
+}
+
 func RelayTaskFetch(c *gin.Context) {
-	relayInfo, err := relaycommon.GenRelayInfo(c, types.RelayFormatTask, nil, nil)
+	relayInfo, err := relaycommon.GenRelayInfo(c, taskRelayFormat(c), nil, nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, &dto.TaskError{
 			Code:       "gen_relay_info_failed",
@@ -484,7 +498,7 @@ func RelayTaskFetch(c *gin.Context) {
 }
 
 func RelayTask(c *gin.Context) {
-	relayInfo, err := relaycommon.GenRelayInfo(c, types.RelayFormatTask, nil, nil)
+	relayInfo, err := relaycommon.GenRelayInfo(c, taskRelayFormat(c), nil, nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, &dto.TaskError{
 			Code:       "gen_relay_info_failed",
@@ -591,6 +605,19 @@ func RelayTask(c *gin.Context) {
 			OtherRatios:     relayInfo.PriceData.OtherRatios(),
 			OriginModelName: relayInfo.OriginModelName,
 			PerCallBilling:  common.StringsContains(constant.TaskPricePatches, relayInfo.OriginModelName) || relayInfo.PriceData.UsePrice,
+		}
+		// Native Volc seedance tasks (Platform="volc-native", served by the reused
+		// VolcEngine(45) channel) settle exactly via AdjustBillingOnComplete
+		// (actual tokens × hardcoded expression). Force delta settlement on and
+		// snapshot the submit-time flags the Volc GET response does not echo
+		// (generate_audio, input content[] video refs).
+		if result.Platform == constant.TaskPlatformVolcNative && volcadaptertask.HasSeedanceExpr(relayInfo.OriginModelName) {
+			task.PrivateData.BillingContext.PerCallBilling = false
+			if bs, bErr := common.GetBodyStorage(c); bErr == nil {
+				if raw, rErr := bs.Bytes(); rErr == nil {
+					task.PrivateData.BillingContext.VolcBillingFlags = volcadaptertask.ExtractVolcBillingFlags(raw)
+				}
+			}
 		}
 		task.Quota = result.Quota
 		task.Data = result.TaskData

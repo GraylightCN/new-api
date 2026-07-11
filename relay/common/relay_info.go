@@ -436,6 +436,13 @@ func GenRelayInfoOpenAI(c *gin.Context, request dto.Request) *RelayInfo {
 	return info
 }
 
+// GenRelayInfoVolc creates relay info for the native Volc Ark image format.
+func GenRelayInfoVolc(c *gin.Context, request dto.Request) *RelayInfo {
+	info := genBaseRelayInfo(c, request)
+	info.RelayFormat = types.RelayFormatVolc
+	return info
+}
+
 func genBaseRelayInfo(c *gin.Context, request dto.Request) *RelayInfo {
 
 	//channelType := common.GetContextKeyInt(c, constant.ContextKeyChannelType)
@@ -550,6 +557,16 @@ func GenRelayInfo(c *gin.Context, relayFormat types.RelayFormat, request dto.Req
 		info = GenRelayInfoOpenAIAudio(c, request)
 	case types.RelayFormatOpenAIImage:
 		info = GenRelayInfoImage(c, request)
+	case types.RelayFormatVolc:
+		// Task path calls with a nil request (RelayTask/RelayTaskFetch); build
+		// task-style relay info. Image path passes a *dto.VolcImageRequest.
+		if request == nil {
+			info = genBaseRelayInfo(c, nil)
+			info.TaskRelayInfo = &TaskRelayInfo{}
+			info.RelayFormat = types.RelayFormatVolc
+		} else {
+			info = GenRelayInfoVolc(c, request)
+		}
 	case types.RelayFormatOpenAIRealtime:
 		info = GenRelayInfoWs(c, ws)
 	case types.RelayFormatClaude:
