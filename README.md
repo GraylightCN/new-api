@@ -1,3 +1,15 @@
+> ### 🔧 Graylight distribution — what's different from upstream
+>
+> This is a friendly **downstream distribution** of [QuantumNous/new-api](https://github.com/QuantumNous/new-api), periodically rebased onto upstream release candidates (currently `v1.0.0-rc.20`). It adds **native VolcEngine Ark (火山方舟) passthrough** as an isolated layer — upstream code, branding and attribution unchanged:
+>
+> - **Seedance native video tasks** — `POST /api/v3/contents/generations/tasks` (+ fetch / list / cancel). Official Volc SDK / curl clients just point `base_url` here. Byte-identical request passthrough preserves Volc-private fields (`sequential_image_generation`, `watermark`, `service_tier`, …); per-model token billing settles the exact quota from real Volc usage tokens.
+> - **Seedream native image** — `POST /api/v3/images/generations`. Byte-identical passthrough, native Volc response shape, per-image billing.
+> - **No new channel type** — reuses the existing **VolcEngine (45)** channel via a named task platform, so one channel + one API key serves text, video and image.
+>
+> Everything below — the New API logo, badges and full documentation — is upstream's, preserved unchanged.
+
+---
+
 <div align="center">
 
 ![new-api](/web/default/public/logo.png)
